@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>L'extracteur de sous-titres de Radio France</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Google Fonts: DM Sans & Roboto -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Global Styles */
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+      margin-bottom: 60px;
+    }
+    /* Header */
+    header {
+      background: #3847F8;
+      color: #fff;
+      padding: 40px 20px;
+      text-align: center;
+      border-radius: 0;
+      margin-bottom: 30px;
+    }
+    header h1 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 2.8rem;
+      font-weight: 500;
+      margin: 0;
+      letter-spacing: 1px;
+    }
+    /* Container */
+    .container-custom {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+    /* Cards pour formulaire et zone d'affichage */
+    .card {
+      background: #fff;
+      /* Suppression de l'arrondi pour le header uniquement, pas pour les cartes */
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card label {
+      font-weight: 900;
+    }
+    /* Labels personnalisés */
+    .label-podcast {
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+    .label-filename {
+      font-size: 0.9rem;
+      font-style: italic;
+      font-weight: normal;
+    }
+    .form-control {
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      box-shadow: none;
+    }
+    /* Boutons */
+    .btn-custom {
+      border-radius: 5px;
+      font-weight: 500;
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .btn-fetch, .btn-export {
+      background-color: #3847F8;
+      color: #fff;
+    }
+    .btn-fetch:hover, .btn-export:hover {
+      background-color: #2e3ecb;
+    }
+    /* Export buttons en deux colonnes avec 15px d'espace entre eux */
+    .export-buttons .col {
+      padding: 0 7.5px;
+      text-align: center;
+    }
+    /* Zone de texte redimensionnable */
+    #resultArea {
+      resize: both;
+      overflow: auto;
+      min-height: 250px;
+    }
+    /* Feedback message */
+    #feedback {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+    #feedback.info { background-color: #d1ecf1; color: #0c5460; }
+    #feedback.warning { background-color: #fff3cd; color: #856404; }
+    #feedback.danger { background-color: #f8d7da; color: #721c24; }
+    /* Préchargeur Overlay à fort contraste */
+    #preloader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    #preloader.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+  </style>
+</head>
+<body>
+  <!-- Préchargeur Overlay -->
+  <div id="preloader">
+    <div class="text-center">
+      <div class="spinner-border text-light" role="status" style="width: 4rem; height: 4rem;">
+        <span class="visually-hidden">Je bosse...</span>
+      </div>
+      <p class="mt-3 text-light">Je bosse...</p>
+    </div>
+  </div>
+  
+  <!-- Header -->
+  <header>
+    <h1>L'extracteur de sous-titres de Radio France</h1>
+  </header>
+  
+  <div class="container-custom">
+    <div class="row">
+      <!-- Sidebar: Formulaire -->
+      <div class="col-md-4">
+        <div class="card">
+          <div class="mb-3">
+            <label for="urlInput" class="form-label label-podcast">URL DU PODCAST</label>
+            <input type="url" id="urlInput" class="form-control" placeholder="Coller l'URL ici">
+          </div>
+          <div class="mb-3">
+            <label for="fileNameInput" class="form-label label-filename">Nom du fichier d'export (facultatif)</label>
+            <input type="text" id="fileNameInput" class="form-control" placeholder="Exemple : Affaires Sensibles inondations">
+          </div>
+          <div class="text-center">
+            <button id="fetchButton" class="btn-custom btn-fetch">EXTRAIRE 𐫰</button>
+          </div>
+          <div id="alert" class="alert d-none mt-3"></div>
+        </div>
+      </div>
+      <!-- Zone d'affichage & Export -->
+      <div class="col-md-8">
+        <div class="card">
+          <textarea id="resultArea" class="form-control" placeholder="Le texte récupéré s'affichera ici..."></textarea>
+          <div class="row export-buttons mt-3">
+            <div class="col" style="text-align:right"> 
+              <button id="copyBtn" class="btn-custom btn-export" style="text-align:right">COPIER ✄</button>
+            </div>
+            <div class="col" style="text-align:left">
+              <button id="downloadBtn" class="btn-custom btn-export" style="text-align:left">TÉLÉCHARGER ⟱</button>
+            </div>
+          </div>
+          <div id="feedback"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fetchButton = document.getElementById('fetchButton');
+    const preloader = document.getElementById('preloader');
+    const resultArea = document.getElementById('resultArea');
+    const fileNameInput = document.getElementById('fileNameInput');
+    const feedbackEl = document.getElementById('feedback');
+    const alertEl = document.getElementById('alert');
+
+    // Fonction de fetch avec fallback
+    async function fetchWithFallback(targetUrl) {
+      const primaryProxy = "https://api.allorigins.win/raw?url=";
+      const secondaryProxy = "https://thingproxy.freeboard.io/fetch/";
+      try {
+        let response = await fetch(primaryProxy + encodeURIComponent(targetUrl));
+        if (!response.ok) throw new Error("Erreur du proxy principal");
+        return response;
+      } catch (error) {
+        let response = await fetch(secondaryProxy + encodeURIComponent(targetUrl));
+        if (!response.ok) throw new Error("Les deux proxies ont échoué");
+        return response;
+      }
+    }
+
+    fetchButton.addEventListener('click', async () => {
+      const url = document.getElementById('urlInput').value;
+      if (!url) {
+        showFeedback('Veuillez entrer une URL valide.', 'warning');
+        return;
+      }
+      resultArea.value = '';
+      showPreloader();
+      fetchButton.disabled = true;
+
+      try {
+        const res = await fetchWithFallback(url);
+        const html = await res.text();
+        const expressionMatch = html.match(/expression_uuid:"([^"]+)"/);
+        if (!expressionMatch) {
+          showAlert('UUID non trouvé dans la page.', 'danger');
+          hidePreloader();
+          fetchButton.disabled = false;
+          return;
+        }
+        const expressionUUID = expressionMatch[1];
+        console.log("expressionUUID:", expressionUUID);
+        await fetchTranscript(expressionUUID);
+      } catch (error) {
+        showAlert(`Erreur: ${error.message}`, 'danger');
+      } finally {
+        hidePreloader();
+        fetchButton.disabled = false;
+      }
+    });
+
+    async function fetchTranscript(uuid) {
+      const jsonUrl = `https://www.radiofrance.fr/transistor/aod/${uuid}/transcript`;
+      try {
+        const jsonResponse = await fetchWithFallback(jsonUrl);
+        if (!jsonResponse.ok) {
+          throw new Error(`Erreur ${jsonResponse.status}: Impossible de récupérer la transcription.`);
+        }
+        const jsonData = await jsonResponse.json();
+        console.log("JSON récupéré:", jsonData);
+        if (!jsonData.transcript || jsonData.transcript.length === 0) {
+          showFeedback('Aucun texte trouvé dans la transcription.', 'warning');
+          return;
+        }
+        const rawText = jsonData.transcript.map(t => t.text).join("\n\n");
+        const cleanedText = cleanText(rawText);
+        resultArea.value = cleanedText;
+      } catch (error) {
+        showFeedback(`Erreur: ${error.message}`, 'danger');
+      }
+    }
+
+    function cleanText(text) {
+      text = text.trim();
+      text = text.replace(/ +/g, ' ');
+      text = text.replace(/ \,/g, ',')
+                 .replace(/ \./g, '.')
+                 .replace(/ \;/g, ';')
+                 .replace(/ \:/g, ':')
+                 .replace(/ \?/g, '?')
+                 .replace(/ \!/g, '!');
+      text = text.replace(/([.,;:?!])([^ \n])/g, '$1 $2');
+      text = text.replace(/([a-zàâçéèêëîïôûùüÿñœ,;:?!])\n(?=[a-zàâçéèêëîïôûùüÿñœ])/g, '$1 ');
+      text = text.split('\n').map(line => line.trim()).join('\n');
+      text = text.replace(/\n{3,}/g, '\n\n');
+      return text;
+    }
+
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      resultArea.select();
+      document.execCommand('copy');
+      showFeedback('Texte copié dans le presse-papiers.', 'info');
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      let fileName = fileNameInput.value.trim();
+      if (fileName !== "") {
+        fileName = fileName.replace(/\s+/g, '-').toLowerCase() + ".txt";
+      } else {
+        fileName = "transcript.txt";
+      }
+      const text = resultArea.value;
+      const blob = new Blob([text], {type: 'text/plain'});
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      showFeedback('Fichier téléchargé.', 'success');
+    });
+
+    function showFeedback(message, type) {
+      feedbackEl.textContent = message;
+      feedbackEl.className = type;
+      feedbackEl.style.display = 'block';
+      setTimeout(() => { feedbackEl.style.display = 'none'; }, 3000);
+    }
+
+    function showAlert(message, type) {
+      alertEl.textContent = message;
+      alertEl.className = 'alert alert-' + type;
+      alertEl.style.opacity = 1;
+      alertEl.classList.remove('d-none');
+      setTimeout(() => {
+        alertEl.style.opacity = 0;
+        setTimeout(() => { alertEl.className = 'alert d-none'; }, 500);
+      }, 5000);
+    }
+
+    function showPreloader() {
+      preloader.classList.add('active');
+    }
+
+    function hidePreloader() {
+      preloader.classList.remove('active');
+    }
+  </script>
+</body>
+</html>
