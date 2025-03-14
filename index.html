@@ -297,8 +297,8 @@
             </div>
             <div class="search-container">
               <input type="text" id="searchInput" class="form-control" placeholder="Rechercher...">
-              <button id="searchPrevBtn" class="btn-custom btn-export btn-arrow">←</button>
-              <button id="searchNextBtn" class="btn-custom btn-export btn-arrow">→</button>
+              <button id="searchNextBtn" class="btn-custom btn-export btn-arrow">←</button>
+              <button id="searchPrevBtn" class="btn-custom btn-export btn-arrow">→</button>
             </div>
           </div>
           <!-- Zone de rendu du transcript -->
@@ -592,7 +592,7 @@
       alertEl.textContent = message;
       alertEl.className = 'alert alert-' + type;
       alertEl.style.opacity = 1;
-      alertEl.classList.remove('d-none'); 
+      alertEl.classList.remove('d-none');
       setTimeout(() => {
         alertEl.style.opacity = 0;
         setTimeout(() => { alertEl.className = 'alert d-none'; }, 500);
