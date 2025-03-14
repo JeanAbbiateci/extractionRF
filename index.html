@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Le lecteur de sous-titres de Radio France</title>
-  <link rel="icon" type="image/png" sizes="16x16"  href="favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Google Fonts: DM Sans & Roboto -->
@@ -140,7 +140,7 @@
       display: inline-block;
       width: 46px;
       height: 24px;
-      margin-right: 10px;
+      margin-right: 5px;
     }
     .switch input {
       opacity: 0;
@@ -177,12 +177,21 @@
       color: #3847F8;
       font-weight: 500;
     }
-    /* Ligne du toggle et moteur de recherche */
+    /* Barre de contrôles */
     .toggle-search-container {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .left-toggles {
+      display: flex;
+      gap: 0.2rem;
+      align-items: center;
+    }
+    .left-toggles span {
+      font-size: 0.9rem;
     }
     .search-container {
       display: flex;
@@ -192,10 +201,11 @@
     .search-container input[type="text"] {
       width: 150px;
     }
-    /* Lien d'exemple sous l'URL */
+    /* Lien d'exemple sous l'input URL */
     .example-link {
       font-size: 0.8rem;
       color: #3847F8;
+      margin-top: 5px;
     }
     .example-link a {
       color: #3847F8;
@@ -212,6 +222,21 @@
     }
     mark.highlight.active-highlight {
       outline: 2px solid #fff;
+    }
+    /* Responsive: sur mobile, passer en colonne */
+    @media (max-width: 576px) {
+      .toggle-search-container {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .search-container {
+        margin-top: 10px;
+        width: 100%;
+        justify-content: space-between;
+      }
+      .search-container input[type="text"] {
+        width: calc(100% - 80px);
+      }
     }
   </style>
 </head>
@@ -239,7 +264,7 @@
           <div class="mb-3">
             <label for="urlInput" class="form-label label-podcast">🎙️ URL DU PODCAST</label>
             <input type="url" id="urlInput" class="form-control" placeholder="Coller l'URL ici">
-            <p class="example-link" style="padding-top:5px"><span style="color:#111;">Utiliser</span></Utiliser> <a href="https://www.radiofrance.fr/franceinter/podcasts/affaires-sensibles/affaires-sensibles-du-mardi-28-janvier-2025-8051820" id="exampleLink">cet exemple</a>.</p>
+            <p class="example-link"><span style="color:#111;">Utiliser</span> <a href="#" id="exampleLink">cet exemple</a></p>
           </div>
           <div class="mb-3">
             <label for="fileNameInput" class="form-label label-filename">Nom du fichier d'export (facultatif)</label>
@@ -254,14 +279,21 @@
       <!-- Zone d'affichage & Export -->
       <div class="col-md-8">
         <div class="card">
-          <!-- Ligne du toggle (à gauche) et moteur de recherche (à droite) -->
+          <!-- Barre de contrôle : switches et moteur de recherche -->
           <div class="toggle-search-container">
-            <div>
+            <div class="left-toggles">
+              <!-- Toggle pour horodatage -->
               <label class="switch">
                 <input type="checkbox" id="toggleTimestamps">
                 <span class="slider"></span>
               </label>
-              <span>Afficher l'horodatage</span>
+              <span style="padding-right:2rem">Horodatage</span>
+              <!-- Toggle pour intervenants -->
+              <label class="switch">
+                <input type="checkbox" id="toggleIntervenants">
+                <span class="slider"></span>
+              </label>
+              <span>Intervenants</span>
             </div>
             <div class="search-container">
               <input type="text" id="searchInput" class="form-control" placeholder="Rechercher...">
@@ -286,7 +318,49 @@
   </div>
 
   <script>
-    const exampleLink = document.getElementById('exampleLink');
+    // Définir l'URL d'exemple
+    const exampleURL = "https://www.radiofrance.fr/franceinter/podcasts/affaires-sensibles/affaires-sensibles-du-mardi-28-janvier-2025-8051820";
+    document.getElementById('exampleLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('urlInput').value = exampleURL;
+    });
+
+    // Fonctions de normalisation pour la recherche accent-insensitive
+    function normalizeText(str) {
+      return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+    function createIndexMapping(original) {
+      const mapping = [];
+      for (let i = 0; i < original.length; i++) {
+        const char = original[i];
+        const normChar = char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        for (let j = 0; j < normChar.length; j++) {
+          mapping.push(i);
+        }
+      }
+      return mapping;
+    }
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    function highlightNormalizedText(original, normalized, mapping, query) {
+      let result = "";
+      let lastIndex = 0;
+      const re = new RegExp(escapeRegExp(query), 'gi');
+      let match;
+      while ((match = re.exec(normalized)) !== null) {
+        const startNorm = match.index;
+        const endNorm = startNorm + match[0].length;
+        const startOriginal = mapping[startNorm];
+        const endOriginal = mapping[endNorm - 1] + 1;
+        result += original.slice(lastIndex, startOriginal);
+        result += `<mark class="highlight">${original.slice(startOriginal, endOriginal)}</mark>`;
+        lastIndex = endOriginal;
+      }
+      result += original.slice(lastIndex);
+      return result;
+    }
+
     const fetchButton = document.getElementById('fetchButton');
     const preloader = document.getElementById('preloader');
     const resultArea = document.getElementById('resultArea');
@@ -294,39 +368,57 @@
     const feedbackEl = document.getElementById('feedback');
     const alertEl = document.getElementById('alert');
     const toggleTimestamps = document.getElementById('toggleTimestamps');
-    const searchInput = document.getElementById('searchInput');
+    const toggleIntervenants = document.getElementById('toggleIntervenants');
+    const searchInputEl = document.getElementById('searchInput');
     const searchPrevBtn = document.getElementById('searchPrevBtn');
     const searchNextBtn = document.getElementById('searchNextBtn');
 
-    let rawTranscriptData = null; // Stocke les données brutes
+    let rawTranscriptData = null;
     let showTimestamps = false;
+    let showIntervenants = toggleIntervenants.checked;
     let searchMatches = [];
     let currentSearchPos = 0;
 
-    // Lien d'exemple : définir l'URL dans une variable et la charger dans l'input
-    const exampleURL = "https://www.radiofrance.fr/franceinter/podcasts/affaires-sensibles/affaires-sensibles-du-mardi-28-janvier-2025-8051820";
-    exampleLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      document.getElementById('urlInput').value = exampleURL;
+    // Switch pour intervenants
+    toggleIntervenants.addEventListener('change', () => {
+      showIntervenants = toggleIntervenants.checked;
+      renderTranscript();
     });
 
+    // Rendu du transcript (affichage inline)
     function renderTranscript() {
       if (!rawTranscriptData) return;
-      let text = rawTranscriptData.map(segment => {
-        const startSec = Math.floor(segment.start);
-        const endSec = Math.floor(segment.end);
+      // Calculer un mapping des intervenants s'il y a plusieurs
+      const speakersSet = new Set();
+      rawTranscriptData.forEach(seg => { if(seg.speaker) speakersSet.add(seg.speaker); });
+      const hasAlternance = speakersSet.size > 1;
+      let speakerMapping = {};
+      if (showIntervenants && hasAlternance) {
+        let speakerCounter = 1;
+        rawTranscriptData.forEach(seg => {
+          if (seg.speaker && !(seg.speaker in speakerMapping)) {
+            speakerMapping[seg.speaker] = speakerCounter++;
+          }
+        });
+      }
+      
+      let text = rawTranscriptData.map(seg => {
+        const startSec = Math.floor(seg.start);
+        const endSec = Math.floor(seg.end);
         const startFormatted = formatTime(startSec);
         const endFormatted = formatTime(endSec);
+        let speakerInfo = "";
+        if (showIntervenants && seg.speaker && hasAlternance) {
+          speakerInfo = `<span style="color:#3847F8; font-weight:bold;">PERSONNE&thinsp;${speakerMapping[seg.speaker]}&thinsp;:&thinsp;</span>`;
+        }
+        // Format des timestamps : sans espace entre le ":" et le chiffre
+        const timestampStr = `[<span class="timestamp">${startFormatted} → ${endFormatted}</span>]`;
         return showTimestamps 
-          ? `[<span class="timestamp">${startFormatted}→${endFormatted}</span>] ${segment.text}`
-          : segment.text;
+          ? `${timestampStr} ${speakerInfo}${seg.text}`
+          : `${speakerInfo}${seg.text}`;
       }).join("\n\n");
       text = cleanText(text);
-      if (showTimestamps) {
-        resultArea.innerHTML = text;
-      } else {
-        resultArea.innerText = text;
-      }
+      resultArea.innerHTML = text;
       updateSearchHighlights();
     }
 
@@ -341,18 +433,28 @@
       return `${m}:${s < 10 ? '0' + s : s}`;
     }
 
-    async function fetchWithFallback(targetUrl) {
+    async function fetchWithFallback(url) {
+      try {
+        let response = await fetch(url);
+        if (response.ok) return response;
+      } catch (error) {
+        console.log("Direct fetch failed:", error);
+      }
       const primaryProxy = "https://api.allorigins.win/raw?url=";
+      try {
+        let response = await fetch(primaryProxy + encodeURIComponent(url));
+        if (response.ok) return response;
+      } catch (error) {
+        console.log("Primary proxy failed:", error);
+      }
       const secondaryProxy = "https://thingproxy.freeboard.io/fetch/";
       try {
-        let response = await fetch(primaryProxy + encodeURIComponent(targetUrl));
-        if (!response.ok) throw new Error("Erreur du proxy principal");
-        return response;
+        let response = await fetch(secondaryProxy + encodeURIComponent(url));
+        if (response.ok) return response;
       } catch (error) {
-        let response = await fetch(secondaryProxy + encodeURIComponent(targetUrl));
-        if (!response.ok) throw new Error("Les deux proxies ont échoué");
-        return response;
+        console.log("Secondary proxy failed:", error);
       }
+      throw new Error("Toutes les tentatives de récupération ont échoué");
     }
 
     fetchButton.addEventListener('click', async () => {
@@ -408,13 +510,13 @@
     function cleanText(text) {
       return text.trim().replace(/ +/g, ' ').replace(/ \,/g, ',')
         .replace(/ \./g, '.').replace(/ \;/g, ';').replace(/ \:/g, ':')
-        .replace(/ \?/g, '?').replace(/ \!/g, '!').replace(/([.,;:?!])([^ \n])/g, '$1 $2')
+        .replace(/ \?/g, '?').replace(/ \!/g, '!').replace(/([,;?!])([^ \n])/g, '$1 $2')
         .split('\n').map(line => line.trim()).join('\n').replace(/\n{3,}/g, '\n\n');
     }
 
     // Recherche accent-insensitive avec surbrillance
     function updateSearchHighlights() {
-      const query = searchInput.value.trim();
+      const query = searchInputEl.value.trim();
       if (!query) {
         searchMatches = [];
         return;
@@ -430,44 +532,6 @@
         currentSearchPos = 0;
         activateHighlight(searchMatches[currentSearchPos]);
       }
-    }
-    
-    function normalizeText(str) {
-      return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    }
-    
-    function createIndexMapping(original) {
-      const mapping = [];
-      for (let i = 0; i < original.length; i++) {
-        const char = original[i];
-        const normChar = char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        for (let j = 0; j < normChar.length; j++) {
-          mapping.push(i);
-        }
-      }
-      return mapping;
-    }
-    
-    function escapeRegExp(string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-    
-    function highlightNormalizedText(original, normalized, mapping, query) {
-      let result = "";
-      let lastIndex = 0;
-      const re = new RegExp(escapeRegExp(query), 'gi');
-      let match;
-      while ((match = re.exec(normalized)) !== null) {
-        const startNorm = match.index;
-        const endNorm = startNorm + match[0].length;
-        const startOriginal = mapping[startNorm];
-        const endOriginal = mapping[endNorm - 1] + 1;
-        result += original.slice(lastIndex, startOriginal);
-        result += `<mark class="highlight">${original.slice(startOriginal, endOriginal)}</mark>`;
-        lastIndex = endOriginal;
-      }
-      result += original.slice(lastIndex);
-      return result;
     }
     
     function activateHighlight(el) {
@@ -509,7 +573,7 @@
       const temp = document.createElement('div');
       temp.innerHTML = resultArea.innerHTML;
       const text = temp.innerText;
-      const blob = new Blob([text], {type: 'text/plain'});
+      const blob = new Blob([text], { type: 'text/plain' });
       const link = document.createElement('a');
       link.download = fileName;
       link.href = URL.createObjectURL(blob);
