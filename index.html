@@ -592,7 +592,7 @@
       alertEl.textContent = message;
       alertEl.className = 'alert alert-' + type;
       alertEl.style.opacity = 1;
-      alertEl.classList.remove('d-none');
+      alertEl.classList.remove('d-none'); 
       setTimeout(() => {
         alertEl.style.opacity = 0;
         setTimeout(() => { alertEl.className = 'alert d-none'; }, 500);
