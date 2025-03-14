@@ -2,11 +2,9 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-<link rel="icon" type="image/png" sizes="16x16"  href="favicon-16x16.png">
-<meta name="msapplication-TileColor" content="#ffffff">
-<meta name="theme-color" content="#ffffff">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>L'extracteur de sous-titres de Radio France</title>
+  <title>Le lecteur de sous-titres de Radio France</title>
+  <link rel="icon" type="image/png" sizes="16x16"  href="favicon-16x16.png">
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Google Fonts: DM Sans & Roboto -->
@@ -29,7 +27,6 @@
       margin-bottom: 30px;
     }
     header h1 {
-      font-family: 'DM Sans', sans-serif;
       font-size: 2.8rem;
       font-weight: 500;
       margin: 0;
@@ -41,10 +38,9 @@
       margin: 0 auto;
       padding: 0 15px;
     }
-    /* Cards pour formulaire et zone d'affichage */
+    /* Cards */
     .card {
       background: #fff;
-      /* Suppression de l'arrondi pour le header uniquement, pas pour les cartes */
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       padding: 20px;
@@ -57,6 +53,7 @@
     .label-podcast {
       font-size: 1.4rem;
       font-weight: bold;
+      color: #3847F8;
     }
     .label-filename {
       font-size: 0.9rem;
@@ -84,16 +81,26 @@
     .btn-fetch:hover, .btn-export:hover {
       background-color: #2e3ecb;
     }
+    /* Boutons de flèche plus petits */
+    .btn-arrow {
+      padding: 5px 10px;
+      font-size: 0.9rem;
+    }
     /* Export buttons en deux colonnes avec 15px d'espace entre eux */
     .export-buttons .col {
       padding: 0 7.5px;
       text-align: center;
     }
-    /* Zone de texte redimensionnable */
+    /* Zone de texte redimensionnable, fenêtre réduite */
     #resultArea {
+      min-height: 250px;
+      max-height: 400px;
       resize: both;
       overflow: auto;
-      min-height: 250px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 10px;
+      white-space: pre-wrap;
     }
     /* Feedback message */
     #feedback {
@@ -107,14 +114,14 @@
     #feedback.info { background-color: #d1ecf1; color: #0c5460; }
     #feedback.warning { background-color: #fff3cd; color: #856404; }
     #feedback.danger { background-color: #f8d7da; color: #721c24; }
-    /* Préchargeur Overlay à fort contraste */
+    /* Préchargeur Overlay */
     #preloader {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0,0,0,0.8);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -126,6 +133,85 @@
     #preloader.active {
       opacity: 1;
       pointer-events: all;
+    }
+    /* Toggle switch (style iPhone) */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+      margin-right: 10px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #3847F8;
+    }
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+    /* Style pour les timestamps */
+    .timestamp {
+      color: #3847F8;
+      font-weight: 500;
+    }
+    /* Ligne du toggle et moteur de recherche */
+    .toggle-search-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .search-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .search-container input[type="text"] {
+      width: 150px;
+    }
+    /* Lien d'exemple sous l'URL */
+    .example-link {
+      font-size: 0.8rem;
+      color: #3847F8;
+    }
+    .example-link a {
+      color: #3847F8;
+      text-decoration: none;
+    }
+    .example-link a:hover {
+      text-decoration: underline;
+    }
+    /* Highlight pour la recherche */
+    mark.highlight {
+      background-color: #3847F8;
+      color: #fff;
+      padding: 0 2px;
+    }
+    mark.highlight.active-highlight {
+      outline: 2px solid #fff;
     }
   </style>
 </head>
@@ -142,7 +228,7 @@
   
   <!-- Header -->
   <header>
-    <h1>L'extracteur de sous-titres de Radio France</h1>
+    <h1>Le lecteur de sous-titres de Radio France</h1>
   </header>
   
   <div class="container-custom">
@@ -153,6 +239,7 @@
           <div class="mb-3">
             <label for="urlInput" class="form-label label-podcast">🎙️ URL DU PODCAST</label>
             <input type="url" id="urlInput" class="form-control" placeholder="Coller l'URL ici">
+            <p class="example-link" style="padding-top:5px"><span style="color:#111;">Utiliser</span></Utiliser> <a href="https://www.radiofrance.fr/franceinter/podcasts/affaires-sensibles/affaires-sensibles-du-mardi-28-janvier-2025-8051820" id="exampleLink">cet exemple</a>.</p>
           </div>
           <div class="mb-3">
             <label for="fileNameInput" class="form-label label-filename">Nom du fichier d'export (facultatif)</label>
@@ -167,13 +254,29 @@
       <!-- Zone d'affichage & Export -->
       <div class="col-md-8">
         <div class="card">
-          <textarea id="resultArea" class="form-control" placeholder="Le texte récupéré s'affichera ici..."></textarea>
+          <!-- Ligne du toggle (à gauche) et moteur de recherche (à droite) -->
+          <div class="toggle-search-container">
+            <div>
+              <label class="switch">
+                <input type="checkbox" id="toggleTimestamps">
+                <span class="slider"></span>
+              </label>
+              <span>Afficher l'horodatage</span>
+            </div>
+            <div class="search-container">
+              <input type="text" id="searchInput" class="form-control" placeholder="Rechercher...">
+              <button id="searchPrevBtn" class="btn-custom btn-export btn-arrow">←</button>
+              <button id="searchNextBtn" class="btn-custom btn-export btn-arrow">→</button>
+            </div>
+          </div>
+          <!-- Zone de rendu du transcript -->
+          <div id="resultArea" class="form-control" contenteditable="true" style="min-height:250px; max-height:400px; overflow:auto; resize:both;"></div>
           <div class="row export-buttons mt-3">
-            <div class="col" style="text-align:right"> 
-              <button id="copyBtn" class="btn-custom btn-export" style="text-align:right">COPIER ✄</button>
+            <div class="col" style="text-align:right">
+              <button id="copyBtn" class="btn-custom btn-export">COPIER ✄</button>
             </div>
             <div class="col" style="text-align:left">
-              <button id="downloadBtn" class="btn-custom btn-export" style="text-align:left">TÉLÉCHARGER ⟱</button>
+              <button id="downloadBtn" class="btn-custom btn-export">TÉLÉCHARGER ⟱</button>
             </div>
           </div>
           <div id="feedback"></div>
@@ -183,14 +286,61 @@
   </div>
 
   <script>
+    const exampleLink = document.getElementById('exampleLink');
     const fetchButton = document.getElementById('fetchButton');
     const preloader = document.getElementById('preloader');
     const resultArea = document.getElementById('resultArea');
     const fileNameInput = document.getElementById('fileNameInput');
     const feedbackEl = document.getElementById('feedback');
     const alertEl = document.getElementById('alert');
+    const toggleTimestamps = document.getElementById('toggleTimestamps');
+    const searchInput = document.getElementById('searchInput');
+    const searchPrevBtn = document.getElementById('searchPrevBtn');
+    const searchNextBtn = document.getElementById('searchNextBtn');
 
-    // Fonction de fetch avec fallback
+    let rawTranscriptData = null; // Stocke les données brutes
+    let showTimestamps = false;
+    let searchMatches = [];
+    let currentSearchPos = 0;
+
+    // Lien d'exemple : définir l'URL dans une variable et la charger dans l'input
+    const exampleURL = "https://www.radiofrance.fr/franceinter/podcasts/affaires-sensibles/affaires-sensibles-du-mardi-28-janvier-2025-8051820";
+    exampleLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('urlInput').value = exampleURL;
+    });
+
+    function renderTranscript() {
+      if (!rawTranscriptData) return;
+      let text = rawTranscriptData.map(segment => {
+        const startSec = Math.floor(segment.start);
+        const endSec = Math.floor(segment.end);
+        const startFormatted = formatTime(startSec);
+        const endFormatted = formatTime(endSec);
+        return showTimestamps 
+          ? `[<span class="timestamp">${startFormatted}→${endFormatted}</span>] ${segment.text}`
+          : segment.text;
+      }).join("\n\n");
+      text = cleanText(text);
+      if (showTimestamps) {
+        resultArea.innerHTML = text;
+      } else {
+        resultArea.innerText = text;
+      }
+      updateSearchHighlights();
+    }
+
+    toggleTimestamps.addEventListener('change', () => {
+      showTimestamps = toggleTimestamps.checked;
+      renderTranscript();
+    });
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}:${s < 10 ? '0' + s : s}`;
+    }
+
     async function fetchWithFallback(targetUrl) {
       const primaryProxy = "https://api.allorigins.win/raw?url=";
       const secondaryProxy = "https://thingproxy.freeboard.io/fetch/";
@@ -211,10 +361,9 @@
         showFeedback('Veuillez entrer une URL valide.', 'warning');
         return;
       }
-      resultArea.value = '';
+      resultArea.innerText = '';
       showPreloader();
       fetchButton.disabled = true;
-
       try {
         const res = await fetchWithFallback(url);
         const html = await res.text();
@@ -249,36 +398,107 @@
           showFeedback('Aucun texte trouvé dans la transcription.', 'warning');
           return;
         }
-        const rawText = jsonData.transcript.map(t => t.text).join("\n\n");
-        const cleanedText = cleanText(rawText);
-        resultArea.value = cleanedText;
+        rawTranscriptData = jsonData.transcript;
+        renderTranscript();
       } catch (error) {
         showFeedback(`Erreur: ${error.message}`, 'danger');
       }
     }
 
     function cleanText(text) {
-      text = text.trim();
-      text = text.replace(/ +/g, ' ');
-      text = text.replace(/ \,/g, ',')
-                 .replace(/ \./g, '.')
-                 .replace(/ \;/g, ';')
-                 .replace(/ \:/g, ':')
-                 .replace(/ \?/g, '?')
-                 .replace(/ \!/g, '!');
-      text = text.replace(/([.,;:?!])([^ \n])/g, '$1 $2');
-      text = text.replace(/([a-zàâçéèêëîïôûùüÿñœ,;:?!])\n(?=[a-zàâçéèêëîïôûùüÿñœ])/g, '$1 ');
-      text = text.split('\n').map(line => line.trim()).join('\n');
-      text = text.replace(/\n{3,}/g, '\n\n');
-      return text;
+      return text.trim().replace(/ +/g, ' ').replace(/ \,/g, ',')
+        .replace(/ \./g, '.').replace(/ \;/g, ';').replace(/ \:/g, ':')
+        .replace(/ \?/g, '?').replace(/ \!/g, '!').replace(/([.,;:?!])([^ \n])/g, '$1 $2')
+        .split('\n').map(line => line.trim()).join('\n').replace(/\n{3,}/g, '\n\n');
     }
 
-    document.getElementById('copyBtn').addEventListener('click', () => {
-      resultArea.select();
-      document.execCommand('copy');
-      showFeedback('Texte copié dans le presse-papiers.', 'info');
+    // Recherche accent-insensitive avec surbrillance
+    function updateSearchHighlights() {
+      const query = searchInput.value.trim();
+      if (!query) {
+        searchMatches = [];
+        return;
+      }
+      const originalText = resultArea.innerText;
+      const normalizedText = normalizeText(originalText);
+      const mapping = createIndexMapping(originalText);
+      const normalizedQuery = normalizeText(query);
+      let highlightedHTML = highlightNormalizedText(originalText, normalizedText, mapping, normalizedQuery);
+      resultArea.innerHTML = highlightedHTML;
+      searchMatches = resultArea.querySelectorAll('mark.highlight');
+      if (searchMatches.length) {
+        currentSearchPos = 0;
+        activateHighlight(searchMatches[currentSearchPos]);
+      }
+    }
+    
+    function normalizeText(str) {
+      return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+    
+    function createIndexMapping(original) {
+      const mapping = [];
+      for (let i = 0; i < original.length; i++) {
+        const char = original[i];
+        const normChar = char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        for (let j = 0; j < normChar.length; j++) {
+          mapping.push(i);
+        }
+      }
+      return mapping;
+    }
+    
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    
+    function highlightNormalizedText(original, normalized, mapping, query) {
+      let result = "";
+      let lastIndex = 0;
+      const re = new RegExp(escapeRegExp(query), 'gi');
+      let match;
+      while ((match = re.exec(normalized)) !== null) {
+        const startNorm = match.index;
+        const endNorm = startNorm + match[0].length;
+        const startOriginal = mapping[startNorm];
+        const endOriginal = mapping[endNorm - 1] + 1;
+        result += original.slice(lastIndex, startOriginal);
+        result += `<mark class="highlight">${original.slice(startOriginal, endOriginal)}</mark>`;
+        lastIndex = endOriginal;
+      }
+      result += original.slice(lastIndex);
+      return result;
+    }
+    
+    function activateHighlight(el) {
+      searchMatches.forEach(mark => mark.classList.remove('active-highlight'));
+      el.classList.add('active-highlight');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    searchNextBtn.addEventListener('click', () => {
+      updateSearchHighlights();
+      if (!searchMatches.length) return;
+      currentSearchPos = (currentSearchPos + 1) % searchMatches.length;
+      activateHighlight(searchMatches[currentSearchPos]);
     });
-
+    
+    searchPrevBtn.addEventListener('click', () => {
+      updateSearchHighlights();
+      if (!searchMatches.length) return;
+      currentSearchPos = (currentSearchPos - 1 + searchMatches.length) % searchMatches.length;
+      activateHighlight(searchMatches[currentSearchPos]);
+    });
+    
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      const temp = document.createElement('div');
+      temp.innerHTML = resultArea.innerHTML;
+      const textToCopy = temp.innerText;
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        showFeedback('Texte copié dans le presse-papiers.', 'info');
+      });
+    });
+    
     document.getElementById('downloadBtn').addEventListener('click', () => {
       let fileName = fileNameInput.value.trim();
       if (fileName !== "") {
@@ -286,7 +506,9 @@
       } else {
         fileName = "transcript.txt";
       }
-      const text = resultArea.value;
+      const temp = document.createElement('div');
+      temp.innerHTML = resultArea.innerHTML;
+      const text = temp.innerText;
       const blob = new Blob([text], {type: 'text/plain'});
       const link = document.createElement('a');
       link.download = fileName;
@@ -294,14 +516,14 @@
       link.click();
       showFeedback('Fichier téléchargé.', 'success');
     });
-
+    
     function showFeedback(message, type) {
       feedbackEl.textContent = message;
       feedbackEl.className = type;
       feedbackEl.style.display = 'block';
       setTimeout(() => { feedbackEl.style.display = 'none'; }, 3000);
     }
-
+    
     function showAlert(message, type) {
       alertEl.textContent = message;
       alertEl.className = 'alert alert-' + type;
@@ -312,11 +534,11 @@
         setTimeout(() => { alertEl.className = 'alert d-none'; }, 500);
       }, 5000);
     }
-
+    
     function showPreloader() {
       preloader.classList.add('active');
     }
-
+    
     function hidePreloader() {
       preloader.classList.remove('active');
     }
